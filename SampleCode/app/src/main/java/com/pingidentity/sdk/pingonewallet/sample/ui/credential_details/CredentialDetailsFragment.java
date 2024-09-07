@@ -12,44 +12,39 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
-import com.pingidentity.sdk.pingonewallet.sample.callbacks.CredentialDetailsListener;
+import com.pingidentity.sdk.pingonewallet.sample.R;
 import com.pingidentity.sdk.pingonewallet.sample.databinding.FragmentCredentialDetailsBinding;
 import com.pingidentity.sdk.pingonewallet.sample.di.component.FragmentComponent;
 import com.pingidentity.sdk.pingonewallet.sample.models.Credential;
 import com.pingidentity.sdk.pingonewallet.sample.rv_adapters.CredentialDetailsAdapter;
 import com.pingidentity.sdk.pingonewallet.sample.ui.base.BaseFragment;
 import com.pingidentity.sdk.pingonewallet.sample.utils.BitmapUtil;
+import com.pingidentity.sdk.pingonewallet.types.IssuerMetadata;
+import com.pingidentity.sdk.pingonewallet.utils.BackgroundThreadHandler;
+import com.pingidentity.sdk.pingonewallet.utils.CredentialUtils;
 
+import java.io.IOException;
 import java.util.Map;
 
 public class CredentialDetailsFragment extends BaseFragment<FragmentCredentialDetailsBinding, CredentialDetailsViewModel> {
 
     public static final String TAG = CredentialDetailsFragment.class.getCanonicalName();
 
-    private Credential mCredential;
-    private String mActionLabel;
-    private CredentialDetailsListener mAction;
-
-    public static CredentialDetailsFragment newInstance(Credential credential, String actionLabel, CredentialDetailsListener action) {
-        CredentialDetailsFragment credentialDetailsFragment = new CredentialDetailsFragment();
-        credentialDetailsFragment.mCredential = credential;
-        credentialDetailsFragment.mActionLabel = actionLabel;
-        credentialDetailsFragment.mAction = action;
-        return credentialDetailsFragment;
-    }
-
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        setClaimData(mCredential);
-        requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), new OnBackPressedCallback(true) {
+        Credential credential = CredentialDetailsFragmentArgs.fromBundle(getArguments()).getCredential();
+        mViewModel.setup(credential, CredentialDetailsAction.DELETE);
+        setClaimData(credential);
+
+        OnBackPressedCallback callback = new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
-                this.remove();
-                requireActivity().onBackPressed();
-                mAction.onCancel();
+                mViewModel.navigateBack();
             }
-        });
+        };
+        requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), callback);
+
     }
 
     @Override
@@ -63,16 +58,36 @@ public class CredentialDetailsFragment extends BaseFragment<FragmentCredentialDe
     }
 
     private void setClaimData(Credential credential) {
-        getViewBinding().btnAction.setText(mActionLabel);
+        getViewBinding().btnAction.setText(R.string.delete_claim);
+
+        BackgroundThreadHandler.singleBackgroundThreadHandler().post(() -> {
+            IssuerMetadata issuerMetadata = CredentialUtils.getIssuerMetadata(credential.getClaim());
+            if (issuerMetadata != null) {
+                BackgroundThreadHandler.postOnMainThread(() -> {
+                    getViewBinding().issuerDetails.setVisibility(View.VISIBLE);
+                    getViewBinding().issuerName.setText(issuerMetadata.getName());
+                    getViewBinding().issuerUrl.setText(issuerMetadata.getCredentialIssuer());
+                });
+                try {
+                    Bitmap logoImage = BitmapUtil.getBitmapFromLogo(issuerMetadata.getLogo(), this.getContext().getContentResolver());
+                    BackgroundThreadHandler.postOnMainThread(() -> {
+                        getViewBinding().issuerLogo.setImageBitmap(logoImage);
+                    });
+                } catch (IOException e) {
+                    Log.d(TAG, "Unable to parse Image from provided logo");
+                }
+            }
+        });
+
+
         Bitmap image = BitmapUtil.getBitmapFromClaim(credential.getClaim());
         if (image != null) {
             getViewBinding().credentialImage.setImageBitmap(image);
         }
         getViewBinding().viewExpired.setVisibility(credential.isRevoked() ? View.VISIBLE : View.GONE);
-        getViewBinding().btnAction.setOnClickListener(v -> {
-            requireActivity().getSupportFragmentManager().popBackStack();
-            mAction.onActionClick(mCredential.getClaim());
-        });
+
+        getViewBinding().btnAction.setOnClickListener(v -> mViewModel.performAction());
+
         setRecyclerView(credential.getClaim().getData());
     }
 
@@ -81,5 +96,7 @@ public class CredentialDetailsFragment extends BaseFragment<FragmentCredentialDe
         getViewBinding().claimsList.setLayoutManager(new LinearLayoutManager(requireContext()));
         getViewBinding().claimsList.setAdapter(adapter);
     }
+
+    public enum CredentialDetailsAction {ACCEPT, DELETE}
 
 }

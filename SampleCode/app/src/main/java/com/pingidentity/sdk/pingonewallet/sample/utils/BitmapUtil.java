@@ -1,9 +1,13 @@
 package com.pingidentity.sdk.pingonewallet.sample.utils;
 
+import android.content.ContentResolver;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
-import android.graphics.Matrix;
+import android.graphics.ImageDecoder;
+import android.net.Uri;
+import android.os.Build;
+import android.provider.MediaStore;
 import android.util.Base64;
 import android.util.Log;
 
@@ -12,7 +16,9 @@ import androidx.annotation.NonNull;
 import com.caverock.androidsvg.SVG;
 import com.pingidentity.did.sdk.types.Claim;
 
-import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -26,11 +32,11 @@ public class BitmapUtil {
         throw new IllegalStateException("Utility class");
     }
 
-    public static List<String> getImageKeys(){
+    public static List<String> getImageKeys() {
         return imageKeys;
     }
 
-    public static Bitmap convertSvgToBitmap(@NonNull final String svgString, final int imageWidth) {
+    public static Bitmap convertSvgToBitmap(@NonNull String svgString, int imageWidth) {
         try {
             SVG svg = SVG.getFromString(svgString.replace("image xlink:href", "image href"));
             float svgAspectRatio = svg.getDocumentAspectRatio();
@@ -47,12 +53,6 @@ public class BitmapUtil {
         }
     }
 
-    public static String bitmapToBase64(Bitmap bitmap) {
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream);
-        return Base64.encodeToString(outputStream.toByteArray(), Base64.DEFAULT);
-    }
-
     public static Bitmap getBitmapFromClaim(Claim claim) {
         Optional<String> base64Image = claim.getData().entrySet().stream()
                 .filter(entry -> BitmapUtil.imageKeys.contains(entry.getKey().toLowerCase()) && !entry.getValue().isEmpty())
@@ -63,13 +63,27 @@ public class BitmapUtil {
             return null;
         }
 
-        final Bitmap svgImage = BitmapUtil.convertSvgToBitmap(base64Image.get(), 500);
+        Bitmap svgImage = BitmapUtil.convertSvgToBitmap(base64Image.get(), 500);
         if (svgImage != null) {
             return svgImage;
         }
 
-        final byte[] decodedImage = Base64.decode(base64Image.get(), Base64.DEFAULT);
+        byte[] decodedImage = Base64.decode(base64Image.get(), Base64.DEFAULT);
         return BitmapFactory.decodeByteArray(decodedImage, 0, decodedImage.length);
+    }
+
+    public static Bitmap getBitmapFromLogo(String logo, ContentResolver contentResolver) throws IOException {
+        if (logo == null) {
+            return null;
+        }
+        Bitmap bitmap = null;
+        try {
+            InputStream inputStream = new URL(logo).openStream();
+            bitmap = BitmapFactory.decodeStream(inputStream);
+            return bitmap;
+        } catch (Exception e) {
+            return convertSvgToBitmap(logo, 50);
+        }
     }
 
 }
