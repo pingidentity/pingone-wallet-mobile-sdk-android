@@ -1,13 +1,8 @@
 package com.pingidentity.sdk.pingonewallet.sample.utils;
 
-import android.content.ContentResolver;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
-import android.graphics.ImageDecoder;
-import android.net.Uri;
-import android.os.Build;
-import android.provider.MediaStore;
 import android.util.Base64;
 import android.util.Log;
 
@@ -72,7 +67,7 @@ public class BitmapUtil {
         return BitmapFactory.decodeByteArray(decodedImage, 0, decodedImage.length);
     }
 
-    public static Bitmap getBitmapFromLogo(String logo, ContentResolver contentResolver) throws IOException {
+    public static Bitmap getBitmapFromLogo(String logo) throws IOException {
         if (logo == null) {
             return null;
         }

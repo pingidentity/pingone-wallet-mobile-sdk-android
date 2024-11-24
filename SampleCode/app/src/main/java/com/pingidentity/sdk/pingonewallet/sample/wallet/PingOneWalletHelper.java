@@ -1,5 +1,10 @@
 package com.pingidentity.sdk.pingonewallet.sample.wallet;
 
+import static android.content.Context.MODE_PRIVATE;
+
+import android.annotation.SuppressLint;
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -7,6 +12,7 @@ import androidx.core.util.Consumer;
 import androidx.fragment.app.FragmentActivity;
 
 import com.pingidentity.did.sdk.client.service.NotFoundException;
+import com.pingidentity.did.sdk.client.service.model.ApplicationInstance;
 import com.pingidentity.did.sdk.client.service.model.Challenge;
 import com.pingidentity.did.sdk.types.Claim;
 import com.pingidentity.did.sdk.types.ClaimReference;
@@ -34,42 +40,67 @@ import com.pingidentity.sdk.pingonewallet.utils.BackgroundThreadHandler;
 
 import java.lang.ref.WeakReference;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers;
 import io.reactivex.rxjava3.core.Completable;
 import io.reactivex.rxjava3.schedulers.Schedulers;
 
+/**
+ * @noinspection ResultOfMethodCallIgnored
+ */
+@SuppressLint({"CheckResult", "ApplySharedPref"})
 public class PingOneWalletHelper implements WalletCallbackHandler {
 
     public static final String TAG = PingOneWalletHelper.class.getCanonicalName();
+    public static final String PUSH_DISABLED_KEY = "push_disabled";
+    public static final String POLLING_ENABLED_KEY = "polling_enabled";
 
     private final PingOneWalletClient pingOneWalletClient;
     private final WeakReference<FragmentActivity> contextWeakReference;
+    private final SharedPreferences preferences;
+    /**
+     * Set this to true if push notifications are not configured in your app
+     */
+
+    public boolean enablePolling;
     private ApplicationUiHandler applicationUiHandler;
     private CredentialPicker credentialPicker;
 
+    @SuppressLint("CheckResult")
     private PingOneWalletHelper(PingOneWalletClient client, FragmentActivity context) {
         this.pingOneWalletClient = client;
         this.contextWeakReference = new WeakReference<>(context);
+        this.preferences = context.getSharedPreferences("polling_preference", MODE_PRIVATE);
+        this.enablePolling = preferences.getBoolean(POLLING_ENABLED_KEY, false);
         client.registerCallbackHandler(this);
-
         BackgroundThreadHandler.singleBackgroundThreadHandler().post(() -> getPushToken(pushToken -> {
             if (pushToken != null) {
-                pingOneWalletClient.updatePushTokens(pushToken);
+                updatePushToken(pushToken);
             }
         }));
 
-        if (this.enablePolling) {
-            pollForMessages();
-        }
+        this.pingOneWalletClient.checkForMessages();
+    }
+
+    /**
+     * This method erases all the credentials and key pairs associated with the wallet and resets it to a clean state. The data is not recoverable after this method is executed.
+     * Must call {@link #initializeWallet(FragmentActivity, Consumer, Consumer)} to use the wallet again.
+     *
+     * @param context Application context
+     */
+    public static void resetWallet(@NonNull Context context) {
+        PingOneWalletClient.reset(context);
     }
 
     public static void initializeWallet(FragmentActivity context, Consumer<PingOneWalletHelper> onResult, Consumer<Throwable> onError) {
-        Completable.fromRunnable(() -> new PingOneWalletClient.Builder(true, PingOneRegion.NA)
-                        .build(context, pingOneWalletClient -> {
+        PingOneRegion defaultRegion = PingOneRegion.NA;
+        Completable.fromRunnable(() -> new PingOneWalletClient.Builder(context, defaultRegion)
+                        .useDefaultStorage(context)
+                        .build(pingOneWalletClient -> {
                             PingOneWalletHelper helper = new PingOneWalletHelper(pingOneWalletClient, context);
                             onResult.accept(helper);
                         }, onError))
@@ -138,6 +169,8 @@ public class PingOneWalletHelper implements WalletCallbackHandler {
      * Call this method to start polling for new messages sent to the wallet. Use this method only if you are not using push notifications.
      */
     public void pollForMessages() {
+        this.enablePolling = true;
+        preferences.edit().putBoolean(POLLING_ENABLED_KEY, true).commit();
         pingOneWalletClient.pollForMessages();
     }
 
@@ -145,19 +178,85 @@ public class PingOneWalletHelper implements WalletCallbackHandler {
      * Call this method to stop polling for messages sent to the wallet.
      */
     public void stopPolling() {
+        this.enablePolling = false;
+        preferences.edit().putBoolean(POLLING_ENABLED_KEY, false).commit();
         pingOneWalletClient.stopPolling();
     }
 
     /**
-     * Set this to true if push notifications are not configured in your app
+     * Returns boolean indicating if Wallet SDK should poll for messages
+     *
+     * @return Boolean
      */
-
-    public boolean enablePolling = true;
-
     public boolean isPollingEnabled() {
         return this.enablePolling;
     }
 
+    /**
+     * Returns ApplicationInstance objects mapped to PingOneRegion
+     *
+     * @return Map of application instances registered by the SDK for different PingOne regions
+     */
+    public Map<PingOneRegion, ApplicationInstance> getAllApplicationInstances() {
+        Map<PingOneRegion, ApplicationInstance> result = new HashMap<>();
+        pingOneWalletClient.getDataRepository().getRegions().forEach(pingOneRegion -> {
+            ApplicationInstance instance = pingOneWalletClient.getDataRepository().getApplicationInstance(pingOneRegion);
+            if (instance != null) {
+                result.put(pingOneRegion, instance);
+            }
+        });
+        return result;
+    }
+
+    /**
+     * Set the push token for the device to be able to receive push notifications.
+     *
+     * @param pushToken for the app
+     */
+    public void updatePushToken(String pushToken) {
+        this.pingOneWalletClient.updatePushNotificationToken(pushToken)
+                .subscribe(() -> Log.d(TAG, "Push updated successfully"),
+                        throwable -> Log.e(TAG, "Error updating push", throwable));
+    }
+
+    /**
+     * Returns whether user has disabled push notifications
+     *
+     * @return Boolean
+     */
+    public boolean isPushDisabled() {
+        return preferences.getBoolean(PUSH_DISABLED_KEY, false);
+    }
+
+    /**
+     * This method enables push notifications for the app and updates the token with backend if it is not disabled in settings
+     */
+    public void enablePush() {
+        preferences.edit().putBoolean(PUSH_DISABLED_KEY, false).commit();
+        getPushToken(pushToken -> {
+            if (pushToken != null) {
+                updatePushToken(pushToken);
+            }
+        });
+    }
+
+    /**
+     * This method disables push notifications for the app and notifies backend about the change
+     */
+    public void disablePush() {
+        preferences.edit().putBoolean(PUSH_DISABLED_KEY, true).commit();
+        this.pingOneWalletClient.disablePush()
+                .subscribe(() -> Log.d(TAG, "Push updated successfully"),
+                        throwable -> Log.e(TAG, "Error updating push", throwable));
+    }
+
+    /**
+     * Delete all the credentials from storage
+     */
+    public void deleteAllCreds() {
+        this.pingOneWalletClient.getDataRepository().getAllCredentials()
+                .forEach(claim -> pingOneWalletClient.getDataRepository().deleteCredential(claim.getId().toString()));
+    }
 
     /////////////////////////////////////////////////////////////////////////////////////
     ////////////////////////// WalletCallbackHandler Implementation /////////////////////
@@ -418,9 +517,27 @@ public class PingOneWalletHelper implements WalletCallbackHandler {
         }
     }
 
-    private void getPushToken(@NonNull Consumer<String> resultConsumer) {
+    public void observePushNotifications(@NonNull FragmentActivity context) {
+        if (applicationUiHandler == null || applicationUiHandler.getNotificationServiceHelper() == null) {
+            return;
+        }
+
+        applicationUiHandler.getNotificationServiceHelper().getNotificationData().observe(context, notificationData -> {
+            if (notificationData != null) {
+                pingOneWalletClient.processNotification(new HashMap<>(notificationData));
+                applicationUiHandler.getNotificationServiceHelper().clearNotificationData();
+            }
+        });
+    }
+
+    public void getPushToken(@NonNull Consumer<String> resultConsumer) {
         if (applicationUiHandler == null || applicationUiHandler.getNotificationServiceHelper() == null) {
             resultConsumer.accept(null);
+            return;
+        }
+
+        if (isPushDisabled()) {
+            resultConsumer.accept("");
             return;
         }
 

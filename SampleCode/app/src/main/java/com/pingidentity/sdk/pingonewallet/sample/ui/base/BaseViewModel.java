@@ -9,6 +9,7 @@ import com.pingidentity.sdk.pingonewallet.sample.models.navigation.Event;
 import com.pingidentity.sdk.pingonewallet.sample.models.navigation.NavigationCommand;
 import com.pingidentity.sdk.pingonewallet.sample.wallet.PingOneWalletHelper;
 import com.pingidentity.sdk.pingonewallet.storage.data_repository.DataRepository;
+import com.pingidentity.sdk.pingonewallet.utils.BackgroundThreadHandler;
 
 import java.util.Optional;
 
@@ -33,12 +34,17 @@ public abstract class BaseViewModel extends ViewModel {
         return pingOneWalletHelper.getDataRepository();
     }
 
-    public LiveData<Event<NavigationCommand>> getNavigation(){
+    public LiveData<Event<NavigationCommand>> getNavigation() {
         return navigation;
     }
 
     public void navigate(NavDirections navDirections) {
         navigation.postValue(new Event<>(new NavigationCommand.ToDirection(navDirections)));
+    }
+    
+    public void processUrl(String url) {
+        BackgroundThreadHandler.singleBackgroundThreadHandler().post(() ->
+                getPingOneWalletHelper().processPingOneRequest(url));
     }
 
     public void navigateBack() {

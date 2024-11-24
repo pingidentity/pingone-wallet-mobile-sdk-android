@@ -1,17 +1,22 @@
 package com.pingidentity.sdk.pingonewallet.sample.ui.home;
 
 import android.annotation.SuppressLint;
+import android.app.AlertDialog;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.InputType;
+import android.text.TextUtils;
+import android.util.Patterns;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.lifecycle.Observer;
-import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
@@ -19,14 +24,12 @@ import com.pingidentity.sdk.pingonewallet.sample.MainApplication;
 import com.pingidentity.sdk.pingonewallet.sample.databinding.FragmentHomeBinding;
 import com.pingidentity.sdk.pingonewallet.sample.di.component.FragmentComponent;
 import com.pingidentity.sdk.pingonewallet.sample.models.Credential;
-import com.pingidentity.sdk.pingonewallet.sample.ui.qr_scanner.QrScannerSharedViewModel;
-import com.pingidentity.sdk.pingonewallet.sample.wallet.PingOneWalletHelper;
 import com.pingidentity.sdk.pingonewallet.sample.rv_adapters.CardsListAdapter;
 import com.pingidentity.sdk.pingonewallet.sample.ui.base.BaseFragment;
+import com.pingidentity.sdk.pingonewallet.utils.DeviceUtils;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 public class HomeFragment extends BaseFragment<FragmentHomeBinding, HomeViewModel> {
@@ -48,7 +51,6 @@ public class HomeFragment extends BaseFragment<FragmentHomeBinding, HomeViewMode
         retrieveData();
         setupClickListeners();
         setupRefreshListener();
-        subscribeSharedData();
     }
 
     @Override
@@ -88,21 +90,47 @@ public class HomeFragment extends BaseFragment<FragmentHomeBinding, HomeViewMode
     }
 
     private void setupClickListeners() {
-        getViewBinding().btnScanQr.setOnClickListener(view -> mViewModel.goToQrScannerClick());
+        getViewBinding().btnScanQr.setOnClickListener(view -> {
+            if (DeviceUtils.isRunningOnEmulator(requireContext())) {
+                showTextboxAlert();
+                Toast.makeText(requireContext(), "Running on emulator", Toast.LENGTH_SHORT).show();
+            } else {
+                mViewModel.goToQrScannerClick();
+            }
+        });
+    }
+
+    private void showTextboxAlert() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
+        builder.setTitle("Copy the URL for execution");
+        builder.setMessage("");
+
+        EditText input = new EditText(requireContext());
+        input.setHint("Enter the URL");
+        input.setInputType(InputType.TYPE_CLASS_TEXT);
+        builder.setView(input);
+
+        builder.setPositiveButton("Submit", null);
+
+        builder.setNegativeButton("Cancel", null);
+
+        AlertDialog dialog = builder.create();
+        dialog.setOnShowListener(dialogInterface -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                .setOnClickListener(view -> {
+                    String inputText = input.getText().toString().trim();
+                    if (TextUtils.isEmpty(inputText)) {
+                        input.setError("Input cannot be empty!");
+                    } else {
+                        dialog.dismiss();
+                        mViewModel.processUrl(inputText);
+                    }
+                }));
+        dialog.show();
+
     }
 
     private void processAppOpenUrl() {
         ((MainApplication) requireActivity().getApplication()).getUrl().observe(getViewLifecycleOwner(), appOpenUrlObserver);
-    }
-
-    private void subscribeSharedData() {
-        QrScannerSharedViewModel qrSharedViewModel = new ViewModelProvider(requireActivity()).get(QrScannerSharedViewModel.class);
-        qrSharedViewModel.getQrData().observe(getViewLifecycleOwner(), rawData -> {
-            if (rawData != null) {
-                qrSharedViewModel.setQrData(null);
-                mViewModel.processUrl(rawData);
-            }
-        });
     }
 
     @SuppressLint("NotifyDataSetChanged")
@@ -120,7 +148,7 @@ public class HomeFragment extends BaseFragment<FragmentHomeBinding, HomeViewMode
     }
 
     private void setCardsListAdapter() {
-        CardsListAdapter adapter = new CardsListAdapter(mDocuments, credential -> mViewModel.goToQrDetails(credential));
+        CardsListAdapter adapter = new CardsListAdapter(mDocuments, credential -> mViewModel.goToDetails(credential));
         getViewBinding().rvCredentials.setLayoutManager(new LinearLayoutManager(requireContext()));
         getViewBinding().rvCredentials.setAdapter(adapter);
     }

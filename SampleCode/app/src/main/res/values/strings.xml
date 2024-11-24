@@ -30,5 +30,9 @@
 
     <string name="wallet_init_error">Error initializing Wallet, app may behave unexpectedly.</string>
     <string name="error">Error</string>
+    <string name="menu_info">Info</string>
+    <string name="button_reset_wallet">Reset Wallet</string>
+    <string name="reset_wallet_message">Your wallet is in an unrecoverable state because the device lock has been removed.\nWould you like to reset the wallet and start fresh? This will erase all existing data.\nAfter the reset, you can contact the issuers to request re-issuance of your credentials.</string>
+    <string name="warning_icon_desc">Warning Icon</string>
 
 </resources>

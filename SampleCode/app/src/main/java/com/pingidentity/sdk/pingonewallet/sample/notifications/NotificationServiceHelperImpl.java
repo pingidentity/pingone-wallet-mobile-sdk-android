@@ -16,10 +16,12 @@ public class NotificationServiceHelperImpl implements NotificationServiceHelper 
     private final MutableLiveData<String> pushToken = new MutableLiveData<>();
     private final MutableLiveData<Map<String, String>> notificationData = new MutableLiveData<>();
 
-    public void updatePushToken(@NonNull final String pushToken) {
+    @Override
+    public void updatePushToken(@NonNull String pushToken) {
         this.pushToken.postValue(pushToken);
     }
 
+    @Override
     public LiveData<String> getPushToken() {
         if (pushToken.getValue() == null) {
             PingOneNotificationService.fetchNewToken();
@@ -27,15 +29,18 @@ public class NotificationServiceHelperImpl implements NotificationServiceHelper 
         return pushToken;
     }
 
+    @Override
     public void updateNotificationData(Map<String, String> notificationData) {
         this.notificationData.postValue(notificationData);
     }
 
+    @Override
     public LiveData<Map<String, String>> getNotificationData() {
         Log.e(TAG, "notificationData: " + (notificationData.hasActiveObservers()));
         return notificationData;
     }
 
+    @Override
     public void clearNotificationData() {
         notificationData.postValue(null);
     }
