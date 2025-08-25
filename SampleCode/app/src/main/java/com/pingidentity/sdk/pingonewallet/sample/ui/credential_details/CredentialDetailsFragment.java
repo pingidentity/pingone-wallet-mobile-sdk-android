@@ -69,7 +69,7 @@ public class CredentialDetailsFragment extends BaseFragment<FragmentCredentialDe
                     getViewBinding().issuerUrl.setText(issuerMetadata.getCredentialIssuer());
                 });
                 try {
-                    Bitmap logoImage = BitmapUtil.getBitmapFromLogo(issuerMetadata.getLogo(), this.getContext().getContentResolver());
+                    Bitmap logoImage = BitmapUtil.getBitmapFromLogo(issuerMetadata.getLogo());
                     BackgroundThreadHandler.postOnMainThread(() -> {
                         getViewBinding().issuerLogo.setImageBitmap(logoImage);
                     });

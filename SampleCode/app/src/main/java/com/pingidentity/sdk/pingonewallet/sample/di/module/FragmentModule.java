@@ -5,16 +5,16 @@ import androidx.core.util.Supplier;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
-import dagger.Module;
-import dagger.Provides;
-
-import com.pingidentity.sdk.pingonewallet.sample.ui.home.HomeViewModel;
-import com.pingidentity.sdk.pingonewallet.sample.ui.picker.PickerViewModel;
-import com.pingidentity.sdk.pingonewallet.sample.wallet.PingOneWalletHelper;
-import com.pingidentity.sdk.pingonewallet.storage.data_repository.DataRepository;
 import com.pingidentity.sdk.pingonewallet.sample.ui.base.BaseFragment;
 import com.pingidentity.sdk.pingonewallet.sample.ui.credential_details.CredentialDetailsViewModel;
+import com.pingidentity.sdk.pingonewallet.sample.ui.home.HomeViewModel;
+import com.pingidentity.sdk.pingonewallet.sample.ui.picker.PickerViewModel;
+import com.pingidentity.sdk.pingonewallet.sample.ui.qr_scanner.QrScannerViewModel;
 import com.pingidentity.sdk.pingonewallet.sample.utils.ViewModelProviderFactory;
+import com.pingidentity.sdk.pingonewallet.sample.wallet.PingOneWalletHelper;
+
+import dagger.Module;
+import dagger.Provides;
 
 @Module
 public class FragmentModule {
@@ -35,6 +35,13 @@ public class FragmentModule {
         Supplier<CredentialDetailsViewModel> supplier = () -> new CredentialDetailsViewModel(pingOneWalletHelper);
         ViewModelProviderFactory<CredentialDetailsViewModel> factory = new ViewModelProviderFactory<>(CredentialDetailsViewModel.class, supplier);
         return new ViewModelProvider(mFragment, factory).get(CredentialDetailsViewModel.class);
+    }
+
+    @Provides
+    QrScannerViewModel provideQrScannerViewModel(@Nullable PingOneWalletHelper pingOneWalletHelper) {
+        Supplier<QrScannerViewModel> supplier = () -> new QrScannerViewModel(pingOneWalletHelper);
+        ViewModelProviderFactory<QrScannerViewModel> factory = new ViewModelProviderFactory<>(QrScannerViewModel.class, supplier);
+        return new ViewModelProvider(mFragment, factory).get(QrScannerViewModel.class);
     }
 
     @Provides

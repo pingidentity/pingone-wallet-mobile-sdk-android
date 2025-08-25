@@ -2,6 +2,7 @@ package com.pingidentity.sdk.pingonewallet.sample.ui.qr_scanner;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.AlertDialog;
 import android.content.pm.PackageManager;
 import android.graphics.Rect;
 import android.graphics.RectF;
@@ -12,6 +13,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
@@ -22,9 +24,6 @@ import androidx.camera.core.ImageProxy;
 import androidx.camera.core.Preview;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.core.content.ContextCompat;
-import androidx.databinding.DataBindingUtil;
-import androidx.fragment.app.Fragment;
-import androidx.lifecycle.ViewModelProvider;
 import androidx.navigation.Navigation;
 
 import com.google.common.util.concurrent.ListenableFuture;
@@ -35,8 +34,9 @@ import com.google.mlkit.vision.barcode.common.Barcode;
 import com.google.mlkit.vision.common.InputImage;
 import com.pingidentity.sdk.pingonewallet.sample.R;
 import com.pingidentity.sdk.pingonewallet.sample.databinding.FragmentQrScannerBinding;
-import com.pingidentity.sdk.pingonewallet.sample.models.navigation.Event;
-import com.pingidentity.sdk.pingonewallet.sample.models.navigation.NavigationCommand;
+import com.pingidentity.sdk.pingonewallet.sample.di.component.FragmentComponent;
+import com.pingidentity.sdk.pingonewallet.sample.ui.base.BaseFragment;
+import com.pingidentity.sdk.pingonewallet.utils.BackgroundThreadHandler;
 
 import java.util.List;
 import java.util.Objects;
@@ -45,7 +45,7 @@ import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 
-public class QrScannerFragment extends Fragment {
+public class QrScannerFragment extends BaseFragment<FragmentQrScannerBinding, QrScannerViewModel> {
 
     public static final String TAG = QrScannerFragment.class.getCanonicalName();
 
@@ -55,10 +55,6 @@ public class QrScannerFragment extends Fragment {
     private float scaleY = 1f;
 
     private ListenableFuture<ProcessCameraProvider> mCameraProviderFuture;
-    private BarcodeBoxView mBarcodeBoxView;
-    private FragmentQrScannerBinding mBinding;
-    private QrScannerSharedViewModel qrSharedViewModel;
-
     private final ActivityResultLauncher<String> permissionResult =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), result -> {
                 if (Boolean.TRUE.equals(result)) {
@@ -67,16 +63,31 @@ public class QrScannerFragment extends Fragment {
                     requireActivity().getSupportFragmentManager().popBackStack();
                 }
             });
+    private BarcodeBoxView mBarcodeBoxView;
 
-    @Nullable
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        mBinding = DataBindingUtil.inflate(inflater, R.layout.fragment_qr_scanner, container, false);
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
         mBarcodeBoxView = new BarcodeBoxView(requireContext());
-        mBinding.viewContainer.addView(mBarcodeBoxView, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        qrSharedViewModel = new ViewModelProvider(requireActivity()).get(QrScannerSharedViewModel.class);
+        getViewBinding().viewContainer.addView(mBarcodeBoxView, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         checkPermission();
-        return mBinding.getRoot();
+        OnBackPressedCallback callback = new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                mViewModel.navigateBack();
+            }
+        };
+        requireActivity().getOnBackPressedDispatcher().addCallback(getViewLifecycleOwner(), callback);
+    }
+
+    @Override
+    public FragmentQrScannerBinding performBinding(@NonNull LayoutInflater inflater, ViewGroup container) {
+        return FragmentQrScannerBinding.inflate(inflater, container, false);
+    }
+
+    @Override
+    public void performDependencyInjection(FragmentComponent buildComponent) {
+        buildComponent.inject(this);
     }
 
     @Override
@@ -111,16 +122,16 @@ public class QrScannerFragment extends Fragment {
                 ProcessCameraProvider cameraProvider = mCameraProviderFuture.get();
                 Preview previewUseCase = new Preview.Builder().build();
                 ImageAnalysis analysisUseCase = getAnalysisUseCase();
-                previewUseCase.setSurfaceProvider(mBinding.previewView.getSurfaceProvider());
+                previewUseCase.setSurfaceProvider(getViewBinding().previewView.getSurfaceProvider());
                 CameraSelector cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA;
                 cameraProvider.bindToLifecycle(QrScannerFragment.this, cameraSelector, previewUseCase, analysisUseCase);
             } catch (ExecutionException e) {
                 Log.e(TAG, "Failed to bind camera", e);
-                qrSharedViewModel.setException(e);
+                showError("Cannot start camera. Please try again.");
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 Log.e(TAG, "Action interrupted.", e);
-                qrSharedViewModel.setException(e);
+                showError("Cannot start camera. Please try again.");
             }
         }, ContextCompat.getMainExecutor(requireContext()));
     }
@@ -138,14 +149,16 @@ public class QrScannerFragment extends Fragment {
 
     @SuppressLint("UnsafeOptInUsageError")
     private void processImageProxy(BarcodeScanner barcodeScanner, ImageProxy imageProxy, ImageAnalysis analysisUseCase) {
-        if (imageProxy.getImage() == null) return;
+        if (imageProxy.getImage() == null) {
+            return;
+        }
         Image image = imageProxy.getImage();
         InputImage inputImage = InputImage.fromMediaImage(image, imageProxy.getImageInfo().getRotationDegrees());
         barcodeScanner.process(inputImage)
                 .addOnSuccessListener(barcodes -> processBarcode(barcodes, analysisUseCase, inputImage))
                 .addOnFailureListener(throwable -> {
                     Log.e(TAG, "Failed to process barcode.", throwable);
-                    qrSharedViewModel.setException(throwable);
+                    showError("Unable to process barcode. Please scan a valid code.");
                 })
                 .addOnCompleteListener(task -> {
                     imageProxy.getImage().close();
@@ -164,22 +177,22 @@ public class QrScannerFragment extends Fragment {
         }
         Barcode barcode = barcodes.get(0);
         if (barcode != null && barcode.getRawValue() != null) {
-            scaleX = mBinding.previewView.getWidth() / (float) inputImage.getHeight();
-            scaleY = mBinding.previewView.getHeight() / (float) inputImage.getWidth();
+            scaleX = getViewBinding().previewView.getWidth() / (float) inputImage.getHeight();
+            scaleY = getViewBinding().previewView.getHeight() / (float) inputImage.getWidth();
             mBarcodeBoxView.setRect(adjustBoundingRect(Objects.requireNonNull(barcode.getBoundingBox())));
             try {
                 mCameraProviderFuture.get().unbind(analysisUseCase);
                 stepDelay(() -> {
-                    qrSharedViewModel.setQrData(barcode.getRawValue());
-                    Navigation.findNavController(mBinding.getRoot()).navigateUp();
+                    mViewModel.processUrl(barcode.getRawValue());
+                    Navigation.findNavController(getViewBinding().getRoot()).navigateUp();
                 });
             } catch (ExecutionException e) {
                 Log.e(TAG, "Failed to bind camera", e);
-                qrSharedViewModel.setException(e);
+                showError("Cannot start camera. Please try again.");
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 Log.e(TAG, "Action interrupted.", e);
-                qrSharedViewModel.setException(e);
+                showError("Cannot start camera. Please try again.");
             }
         }
     }
@@ -212,6 +225,19 @@ public class QrScannerFragment extends Fragment {
                 requireActivity().runOnUiThread(runnable);
             }
         }, 1000);
+    }
+
+    private void showError(String message) {
+        BackgroundThreadHandler.postOnMainThread(() ->
+                new AlertDialog.Builder(this.getContext())
+                        .setTitle("Error")
+                        .setMessage(message)
+                        .setPositiveButton(R.string.dialog_confirm, (dialog, which) -> {
+                            dialog.dismiss();
+                            mViewModel.navigateBack();
+                        })
+                        .show());
+
     }
 
 }
