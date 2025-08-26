@@ -25,7 +25,7 @@ identification and verification purposes.
 ### Getting started: Add the aar needed for your application
 
 If you haven't done so already, clone or download the PingOne Wallet SDK for Android sample app. You
-will find the `PingOneWallet-2.0.0.aar` dependency required for the PingOne Wallet Android SDK in
+will find the `PingOneWallet-2.0.2.aar` dependency required for the PingOne Wallet Android SDK in
 the SDK dependencies directory.
 
 1. Add the following to your module level `build.gradle` file to include the dependencies in your
@@ -38,7 +38,7 @@ the SDK dependencies directory.
     }
 ```
 
-Note `../dependencies/` should point to where you are storing the `PingOneWallet-2.0.0.aar`
+Note `../dependencies/` should point to where you are storing the `PingOneWallet-2.0.2.aar`
 
 2. Because these components are loaded locally, you will also need to include the SDK's dependencies
    in the configuration to compile and run it.
@@ -260,19 +260,15 @@ file to get the `applicationInstanceId` from the instantiated SDK to enable back
         clientBuilder.setStorageManager(storageManager);
     }
     // Using the builder pattern, once the clientBuilder is setup
-    Completable.fromRunnable(() -> {
-                clientBuilder.build(context, pingOneWalletClient -> {
-                    UUID applicationInstanceID = pingOneWalletClient.getApplicationInstance(PingOneRegion.NA).getId();
-                    // You need the applicationInstanceId for the instantiated SDK
-                    // Send this applicationInstanceId to a trusted service
-                    // to pair the wallet with the "user" in the application.
-                }, throwable -> {
-                    //Handle Error
-                });
-            })
-            .subscribeOn(Schedulers.io())
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe();
+    Completable.fromRunnable(() -> new PingOneWalletClient.Builder(context, PingOneRegion.NA)
+                        .useDefaultStorage(fragmentActivity)
+                        .build(pingOneWalletClient -> {
+                            PingOneWalletHelper helper = new PingOneWalletHelper(pingOneWalletClient, context);
+                            onResult.accept(helper);
+                        }, onError))
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe();
 ```
 
 #### Step 3 - Request pairing
