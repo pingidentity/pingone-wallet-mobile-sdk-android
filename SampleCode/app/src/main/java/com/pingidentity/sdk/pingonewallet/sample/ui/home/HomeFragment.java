@@ -120,6 +120,8 @@ public class HomeFragment extends BaseFragment<FragmentHomeBinding, HomeViewMode
                     String inputText = input.getText().toString().trim();
                     if (TextUtils.isEmpty(inputText)) {
                         input.setError("Input cannot be empty!");
+                    } else if (!isOpenIdUrl(inputText) && !Patterns.WEB_URL.matcher(inputText).matches()) {
+                        input.setError("Invalid URL format!");
                     } else {
                         dialog.dismiss();
                         mViewModel.processUrl(inputText);
@@ -127,6 +129,10 @@ public class HomeFragment extends BaseFragment<FragmentHomeBinding, HomeViewMode
                 }));
         dialog.show();
 
+    }
+
+    private boolean isOpenIdUrl(String text) {
+        return text.startsWith("openid-vc://?request_uri=");
     }
 
     private void processAppOpenUrl() {
