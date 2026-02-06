@@ -144,7 +144,7 @@ information.
    Firebase Console.
 
 2. See the PingOne documentation
-   for [Adding an application - Native](https://docs.pingidentity.com/r/en-us/pingone/p1_add_app_worker)
+   for [Adding an application - Native](https://docs.pingidentity.com/pingone/applications/p1_edit_application_native.html)
    to register your wallet app.
 
 3. After adding your wallet application, go to Mobile -> Edit () -> Configure for Android -> Add
@@ -155,7 +155,7 @@ information.
 5. Save your changes.
 
 See the PingOne
-documentation [Edit an application - Native](https://docs.pingidentity.com/r/0ue6NPmZLPN667l6iXUjRg/G7CfTYed9WCeNzmfcno0Pw)
+documentation [Edit an application - Native](https://docs.pingidentity.com/pingone/applications/p1_edit_application_native.html)
 for more information.
 
 ### Using app links
@@ -165,7 +165,7 @@ app links for your application.
 
 Application developers are responsible for implementation of the App Links. You can follow the steps
 documented
-in [Getting started with PingOne Credentials](https://docs.pingidentity.com/r/en-us/pingone/pingone_p1credentials_gettingstart)
+in [Getting started with PingOne Credentials](https://docs.pingidentity.com/pingone/applications/p1_edit_application_native.html)
 to configure the app link in your PingOne environment for your mobile application.
 
 Here’s a sample link generated for initiating wallet pairing and also for requesting a credential
