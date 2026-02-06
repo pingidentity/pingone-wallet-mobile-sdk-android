@@ -197,7 +197,7 @@ wallet link in the PingOne environment.
 
 ### Server Side configuration
 
-See [Edit an application](https://docs.pingidentity.com/r/en-us/pingone/pingone_edit_application_native)
+See [Edit an application](https://docs.pingidentity.com/pingone/applications/p1_edit_application_native.html)
 in the admin guide for the server-side configuration steps.
 
 ## Class Reference
