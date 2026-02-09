@@ -15,22 +15,18 @@ android {
         applicationId "com.pingidentity.pingonewallet.sample"
         minSdk 26
         targetSdk 34
-        versionCode 14
-        versionName "2.0.0"
+        versionCode 25
+        versionName "2.0.2"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    buildTypes {
-        release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.debug
+    applicationVariants.all { variant ->
+        variant.outputs.all {
+            outputFileName = "PingOneWalletSample-${variant.buildType.name}-${variant.versionName}(${variant.versionCode}).apk"
         }
     }
-    packagingOptions {
-        exclude("META-INF/DEPENDENCIES")
-    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
@@ -78,6 +74,7 @@ dependencies {
     implementation 'com.squareup.retrofit2:adapter-rxjava3:2.9.0'
     implementation 'com.squareup.retrofit2:retrofit:2.9.0'
     implementation 'com.squareup.okhttp3:okhttp-urlconnection:4.9.3'
+    implementation 'org.apache.httpcomponents:httpclient:4.5.13'
 
     implementation 'com.squareup.moshi:moshi:1.14.0'
     implementation 'com.squareup.moshi:moshi-adapters:1.14.0'

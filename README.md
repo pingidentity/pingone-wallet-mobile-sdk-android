@@ -25,7 +25,7 @@ identification and verification purposes.
 ### Getting started: Add the aar needed for your application
 
 If you haven't done so already, clone or download the PingOne Wallet SDK for Android sample app. You
-will find the `PingOneWallet-2.0.0.aar` dependency required for the PingOne Wallet Android SDK in
+will find the `PingOneWallet-2.0.2.aar` dependency required for the PingOne Wallet Android SDK in
 the SDK dependencies directory.
 
 1. Add the following to your module level `build.gradle` file to include the dependencies in your
@@ -38,7 +38,7 @@ the SDK dependencies directory.
     }
 ```
 
-Note `../dependencies/` should point to where you are storing the `PingOneWallet-2.0.0.aar`
+Note `../dependencies/` should point to where you are storing the `PingOneWallet-2.0.2.aar`
 
 2. Because these components are loaded locally, you will also need to include the SDK's dependencies
    in the configuration to compile and run it.
@@ -144,7 +144,7 @@ information.
    Firebase Console.
 
 2. See the PingOne documentation
-   for [Adding an application - Native](https://docs.pingidentity.com/r/en-us/pingone/p1_add_app_worker)
+   for [Adding an application - Native](https://docs.pingidentity.com/pingone/applications/p1_applications_add_applications.html)
    to register your wallet app.
 
 3. After adding your wallet application, go to Mobile -> Edit () -> Configure for Android -> Add
@@ -155,7 +155,7 @@ information.
 5. Save your changes.
 
 See the PingOne
-documentation [Edit an application - Native](https://docs.pingidentity.com/r/0ue6NPmZLPN667l6iXUjRg/G7CfTYed9WCeNzmfcno0Pw)
+documentation [Edit an application - Native](https://docs.pingidentity.com/pingone/applications/p1_edit_application_native.html)
 for more information.
 
 ### Using app links
@@ -165,7 +165,7 @@ app links for your application.
 
 Application developers are responsible for implementation of the App Links. You can follow the steps
 documented
-in [Getting started with PingOne Credentials](https://docs.pingidentity.com/r/en-us/pingone/pingone_p1credentials_gettingstart)
+in [Getting started with PingOne Credentials](https://docs.pingidentity.com/pingone/digital_credentials_using_pingone_credentials/p1_credentials_getting_started.html)
 to configure the app link in your PingOne environment for your mobile application.
 
 Here’s a sample link generated for initiating wallet pairing and also for requesting a credential
@@ -197,7 +197,7 @@ wallet link in the PingOne environment.
 
 ### Server Side configuration
 
-See [Edit an application](https://docs.pingidentity.com/r/en-us/pingone/pingone_edit_application_native)
+See [Edit an application](https://docs.pingidentity.com/pingone/applications/p1_edit_application_native.html)
 in the admin guide for the server-side configuration steps.
 
 ## Class Reference
@@ -260,19 +260,15 @@ file to get the `applicationInstanceId` from the instantiated SDK to enable back
         clientBuilder.setStorageManager(storageManager);
     }
     // Using the builder pattern, once the clientBuilder is setup
-    Completable.fromRunnable(() -> {
-                clientBuilder.build(context, pingOneWalletClient -> {
-                    UUID applicationInstanceID = pingOneWalletClient.getApplicationInstance(PingOneRegion.NA).getId();
-                    // You need the applicationInstanceId for the instantiated SDK
-                    // Send this applicationInstanceId to a trusted service
-                    // to pair the wallet with the "user" in the application.
-                }, throwable -> {
-                    //Handle Error
-                });
-            })
-            .subscribeOn(Schedulers.io())
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe();
+    Completable.fromRunnable(() -> new PingOneWalletClient.Builder(context, PingOneRegion.NA)
+                        .useDefaultStorage(fragmentActivity)
+                        .build(pingOneWalletClient -> {
+                            PingOneWalletHelper helper = new PingOneWalletHelper(pingOneWalletClient, context);
+                            onResult.accept(helper);
+                        }, onError))
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe();
 ```
 
 #### Step 3 - Request pairing
@@ -285,11 +281,11 @@ that mobile applications do not directly call the PingOne OAuth APIs.
 
 Call the PingOne APIs to create a user in your PingOne environment and pair a digital wallet.
 
-[Create user](https://apidocs.pingidentity.com/pingone/platform/v1/api/#post-create-user) API
+[Create user](https://developer.pingidentity.com/pingone-api/platform/users/users-1/create-user.html) API
 
 `curl -X POST https://api.pingone.com/v1/environments/abfba8f6-49eb-49f5-a5d9-80ad5c98f9f6/users`
 
-[Create digital wallet](https://apidocs.pingidentity.com/pingone/platform/v1/api/#post-create-digital-wallet)
+[Create digital wallet](https://developer.pingidentity.com/pingone-api/credentials/digital-wallets/create-digital-wallet.html)
 API
 
 `curl -X POST https://api.pingone.com/v1/environments/abfba8f6-49eb-49f5-a5d9-80ad5c98f9f6/users/49825b76-e1df-4cdc-b973-0c580f1cb049/digitalWallets`
