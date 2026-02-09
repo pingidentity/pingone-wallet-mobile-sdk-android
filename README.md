@@ -281,11 +281,11 @@ that mobile applications do not directly call the PingOne OAuth APIs.
 
 Call the PingOne APIs to create a user in your PingOne environment and pair a digital wallet.
 
-[Create user](https://apidocs.pingidentity.com/pingone/platform/v1/api/#post-create-user) API
+[Create user](https://developer.pingidentity.com/pingone-api/platform/users/users-1/create-user.html) API
 
 `curl -X POST https://api.pingone.com/v1/environments/abfba8f6-49eb-49f5-a5d9-80ad5c98f9f6/users`
 
-[Create digital wallet](https://apidocs.pingidentity.com/pingone/platform/v1/api/#post-create-digital-wallet)
+[Create digital wallet](https://developer.pingidentity.com/pingone-api/credentials/digital-wallets/create-digital-wallet.html)
 API
 
 `curl -X POST https://api.pingone.com/v1/environments/abfba8f6-49eb-49f5-a5d9-80ad5c98f9f6/users/49825b76-e1df-4cdc-b973-0c580f1cb049/digitalWallets`
